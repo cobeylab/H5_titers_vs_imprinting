@@ -37,12 +37,20 @@ fit_linear_models <- function(data, antigen){
 }
 
 # Compute Spearman correlations between titers to each antigen and various predictors
-compute_spearman_correlations <- function(data){
+compute_spearman_correlations <- function(data, include_imp_h3n2 = F){
+  
+  candidate_correlates <- c("imp_h1n1", "imp_group1", "age", "yob")
+  
+  if(include_imp_h3n2){
+    candidate_correlates <- c(candidate_correlates, "imp_h3n2")
+  }
+  
+  
   data %>%
     group_by(antigen) %>%
-    summarise(across(c("imp_h1n1", "imp_group1", "age", "yob"), function(x){cor.test(x, titer, method = 'spearman')$estimate},
+    summarise(across(candidate_correlates, function(x){cor.test(x, titer, method = 'spearman')$estimate},
                      .names = "coef_{.col}"),
-              across(c("imp_h1n1", "imp_group1", "age", "yob"), function(x){cor.test(x, titer, method = 'spearman')$p.value},
+              across(candidate_correlates, function(x){cor.test(x, titer, method = 'spearman')$p.value},
                      .names = "pvalue_{.col}"),
               n_obs = n()
     ) %>%
@@ -122,7 +130,7 @@ run_bootstrap_correlation_test <- function(data, predictor1, predictor2, nrep){
 # For the blood bank data set, compute Spearman correlations between titers to
 # each antigen and probability of imprinting with group1 and probability of
 # imprinting with H1N1
-spearman_cors_table_s1 <- compute_spearman_correlations(table_s1_data) %>%
+spearman_cors_table_s1 <- compute_spearman_correlations(table_s1_data, include_imp_h3n2 = T) %>%
     filter(predictor != 'age', predictor != 'yob')
 
 write_csv(spearman_cors_table_s1, "table_s1_spearman_corrs.csv")
