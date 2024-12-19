@@ -20,8 +20,10 @@ fit_linear_models <- function(data, antigen){
   yob_model <- lm(log2_titer ~ yob, data = data)
   group1_imprinting_model <- lm(log2_titer ~ imp_group1, data = data)
   h1n1_imprinting_model <- lm(log2_titer ~ imp_h1n1, data = data)
+  h2n2_imprinting_model <- lm(log2_titer ~ imp_h2n2, data = data)
   
-  AIC_table <- AIC(age_model, yob_model, group1_imprinting_model, h1n1_imprinting_model) %>%
+  AIC_table <- AIC(age_model, yob_model, group1_imprinting_model, h1n1_imprinting_model,
+                   h2n2_imprinting_model) %>%
     as_tibble(rownames = "model") %>%
     arrange(AIC) %>%
     mutate(loglik = sapply(model,
@@ -89,7 +91,7 @@ run_bootstrap_correlation_test <- function(data, predictor1, predictor2, nrep){
       mutate(cor_diff = cor_predictor_1 - cor_predictor_2)
   }
   
-  obs_corr_diff <- compute_spearman_correlations(data) %>%
+  obs_corr_diff <- compute_spearman_correlations(data, include_imp_h2n2 = T) %>%
    get_pw_comparison(predictor1 = predictor1, predictor2 = predictor2) %>%
     rename_with(.fn = function(x){paste0(x,"_obs")}, .cols = !matches("antigen"))
   
@@ -105,7 +107,8 @@ run_bootstrap_correlation_test <- function(data, predictor1, predictor2, nrep){
       resampled_data <- data[resampled_rows,]
       
       
-      resampled_corr <- compute_spearman_correlations(resampled_data) %>%
+      resampled_corr <- compute_spearman_correlations(resampled_data,
+                                                      include_imp_h2n2 = T) %>%
         get_pw_comparison(predictor1 = predictor1, predictor2 = predictor2)
       
       bootstrap_corr_diff <- bootstrap_corr_diff %>%
@@ -270,7 +273,8 @@ model_comparison <- model_comparison %>%
     "yob" ~ "Birth year",
     "group1_imprinting" ~ "Group 1 imprinting",
     "age" ~ "Age",
-    "h1n1_imprinting" ~ "H1N1 imprinting"
+    "h1n1_imprinting" ~ "H1N1 imprinting",
+    "h2n2_imprinting" ~ "H2N2 imprinting"
   )) %>%
   mutate(across(any_of(c('AIC','loglik','delta_AIC')), ~round(.x,2)))
 
@@ -295,6 +299,12 @@ bootstrap_h1N1_vs_age <- run_bootstrap_correlation_test(table_s2_data,
                                                         predictor2 = "age",
                                                         nrep = nrep)
 
+# Does H2N2 imprinting beat age?
+bootstrap_h2N2_vs_age <- run_bootstrap_correlation_test(data = table_s2_data,
+                                                        predictor1 = "imp_h2n2",
+                                                        predictor2 = "age",
+                                                        nrep = nrep)
+
 
 # Does group 1 imprinting beat YOB?
 bootstrap_group1_vs_yob <- run_bootstrap_correlation_test(table_s2_data,
@@ -306,6 +316,7 @@ bootstrap_results <-
   bootstrap_yob_vs_age %>%
   bind_rows(bootstrap_group1_vs_age) %>%
   bind_rows(bootstrap_h1N1_vs_age) %>%
+  bind_rows(bootstrap_h2N2_vs_age) %>%
   bind_rows(bootstrap_group1_vs_yob)
 
 bootstrap_results <- bootstrap_results %>%
