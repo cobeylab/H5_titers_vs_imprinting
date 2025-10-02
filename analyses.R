@@ -8,6 +8,48 @@ table_s4_data <- read_csv("data-raw/table_s3_vaccinated_cohort.csv")
 nrep <- 1000 # Number of bootstrap replicates
 
 
+# Recalculate imprinting probabilities
+table_s1_data <- table_s1_data %>%
+  select(-imp_h1n1, -imp_h2n2, -imp_h3n2, -imp_naive, -imp_group1) %>%
+  left_join(
+    get_imprinting_probabilities(observation_years = 2017,
+                                 countries = "United States",
+                                 df_format = "wide") %>%
+      rename(yob = birth_year, imp_h1n1 = `A/H1N1`, imp_h2n2 = `A/H2N2`,
+             imp_h3n2 = `A/H3N2`, imp_naive = naive) %>%
+      mutate(imp_group1 = imp_h1n1 + imp_h2n2) %>%
+      select(-country, -year)
+  )
+
+
+table_s2_data <- 
+  bind_rows(
+    table_s2_data %>% filter(cohort == "bfrnt") %>%
+      select(-imp_h1n1, -imp_h2n2, -imp_h3n2, -imp_group1) %>%
+      left_join(
+        get_imprinting_probabilities(observation_years = 2017,
+                                     countries = "United States",
+                                     df_format = "wide") %>%
+          rename(yob = birth_year, imp_h1n1 = `A/H1N1`, imp_h2n2 = `A/H2N2`,
+                 imp_h3n2 = `A/H3N2`, imp_naive = naive) %>%
+          mutate(imp_group1 = imp_h1n1 + imp_h2n2) %>%
+          select(-country, -year)
+      ),
+    table_s2_data %>% filter(cohort == "vaccinee") %>%
+      select(-imp_h1n1, -imp_h2n2, -imp_h3n2, -imp_group1) %>%
+      left_join(
+        get_imprinting_probabilities(observation_years = 2005,
+                                     countries = "United States",
+                                     df_format = "wide") %>%
+          rename(yob = birth_year, imp_h1n1 = `A/H1N1`, imp_h2n2 = `A/H2N2`,
+                 imp_h3n2 = `A/H3N2`, imp_naive = naive) %>%
+          mutate(imp_group1 = imp_h1n1 + imp_h2n2) %>%
+          select(-country, -year)
+      )
+  )
+  
+
+
 # Given the data, and for a single antigen, fits separate linear models predicting
 # log titers based on age, year of birth, group1 imprinting probability, and H1N1
 # imprinting probability
